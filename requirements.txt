@@ -1,0 +1,12 @@
+crawl4ai~=0.4.0
+requests~=2.32.3
+beautifulsoup4
+lxml
+openai~=1.57.0
+python-telegram-bot
+python-dotenv~=1.0.1
+feedparser~=6.0.11
+textstat~=0.7.4
+tranco~=0.8.1
+newspaper3k
+python-telegram-bot
