@@ -7,7 +7,7 @@ on:
     branches: [ "main" ]
 
 jobs:
-  deploy:
+  ci-test: # This is only for local linting & testing on the GitHub runner
     runs-on: ubuntu-latest
 
     steps:
@@ -19,13 +19,12 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: 📦 Install dependencies
+      - name: 📦 Install dependencies for CI
         run: |
           python -m pip install --upgrade pip
-          # Install numpy first to prevent dependency conflicts
           pip install --no-cache-dir --no-deps numpy==2.2.0 
           pip install --no-cache-dir flake8 pytest -r requirements.txt --use-feature=fast-deps
-          pip install crawl4ai~=0.4.1  # Install crawl4ai separately to avoid dependency issues
+          pip install crawl4ai~=0.4.1
 
       - name: ⚙️ Lint the code
         run: |
@@ -34,6 +33,13 @@ jobs:
       #- name: ✅ Run Tests
       #  run: |
       #    pytest --disable-warnings || exit 1
+
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 🛠️ Checkout code
+        uses: actions/checkout@v3
 
       - name: 🚀 Deploy to Oracle cloud VM
         uses: appleboy/ssh-action@master
@@ -55,16 +61,19 @@ jobs:
             
             echo "📦 Setting up the virtual environment..."
             if [ ! -d "venv" ]; then
-              python3 -m venv venv
+              python3 -m venv venv --upgrade-deps
             fi
             
             source venv/bin/activate
+            
+            echo "📦 Ensuring pip is available..."
+            python -m ensurepip --upgrade
             python -m pip install --upgrade pip
             
-            echo "📦 Installing dependencies..."
-            pip install --no-cache-dir --no-deps numpy==2.2.0  # Install numpy first
+            echo "📦 Installing dependencies on the Oracle server..."
+            pip install --no-cache-dir --no-deps numpy==2.2.0 
             pip install --no-cache-dir -r requirements.txt --use-feature=fast-deps
-            pip install crawl4ai~=0.4.1  # Install crawl4ai separately
+            pip install crawl4ai~=0.4.1
             
             echo "✅ Deployment completed successfully."
 
