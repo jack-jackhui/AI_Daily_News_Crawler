@@ -62,7 +62,7 @@ jobs:
             python -m pip install --upgrade pip
             
             echo "📦 Installing dependencies..."
-            pip install --no-cache-dir --no-deps numpy==1.26.0  # Install numpy first
+            pip install --no-cache-dir --no-deps numpy==2.2.0  # Install numpy first
             pip install --no-cache-dir -r requirements.txt --use-feature=fast-deps
             pip install crawl4ai~=0.4.1  # Install crawl4ai separately
             
