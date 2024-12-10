@@ -1,6 +1,7 @@
-import os
 import json
 import logging
+import os
+
 from dotenv import load_dotenv
 from openai import AzureOpenAI
 
@@ -8,6 +9,7 @@ from openai import AzureOpenAI
 load_dotenv()
 
 logger = logging.getLogger(__name__)
+
 
 def re_rank_and_summarize_with_llm(articles: list[dict]) -> list[dict]:
     """
@@ -28,11 +30,13 @@ def re_rank_and_summarize_with_llm(articles: list[dict]) -> list[dict]:
             {
                 "url": a.get("url", ""),
                 "title": a.get("title", "Untitled"),
-                "content": a.get("content", "")[:500]  # Limit content to avoid token overflow
+                "content": a.get("content", "")[
+                    :500
+                ],  # Limit content to avoid token overflow
             }
             for a in articles
         ],
-        ensure_ascii=False
+        ensure_ascii=False,
     )
 
     system_prompt = (
@@ -54,10 +58,10 @@ def re_rank_and_summarize_with_llm(articles: list[dict]) -> list[dict]:
         "Return only valid JSON. Here is an example of the expected format:\n"
         "[\n"
         "  {\n"
-        "    \"icon\": \"🤖\",\n"
-        "    \"title\": \"Title of the grouped topic\",\n"
-        "    \"summary\": \"A one-liner summary of the grouped content.\",\n"
-        "    \"url\": \"https://example.com/most-relevant-article\"\n"
+        '    "icon": "🤖",\n'
+        '    "title": "Title of the grouped topic",\n'
+        '    "summary": "A one-liner summary of the grouped content.",\n'
+        '    "url": "https://example.com/most-relevant-article"\n'
         "  },\n"
         "  ...\n"
         "]\n\n"
@@ -68,18 +72,18 @@ def re_rank_and_summarize_with_llm(articles: list[dict]) -> list[dict]:
     client = AzureOpenAI(
         api_key=os.getenv("AZURE_OPENAI_API_KEY"),
         api_version=os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-15-preview"),
-        azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT")
+        azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
     )
 
     try:
         chat_completion = client.chat.completions.create(
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
+                {"role": "user", "content": user_prompt},
             ],
             model="gpt-4o",  # Replace with the correct model
             temperature=0.7,
-            max_tokens=1000
+            max_tokens=1000,
         )
         response_text = chat_completion.choices[0].message.content.strip()
         logger.info(f"Azure response: {response_text}")

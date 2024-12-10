@@ -1,10 +1,12 @@
-import os
 import json
+import os
+
 from dotenv import load_dotenv
 from openai import AzureOpenAI
 
 # Load environment variables from .env
 load_dotenv()
+
 
 def summarize_news_articles(articles: list[dict]) -> list[dict]:
     """
@@ -26,7 +28,7 @@ def summarize_news_articles(articles: list[dict]) -> list[dict]:
              or empty list if no articles or if an error occurs.
     """
     # Filter only articles with content
-    valid_articles = [a for a in articles if a.get('content')]
+    valid_articles = [a for a in articles if a.get("content")]
     if not valid_articles:
         print("No valid articles found to summarize.")
         return []
@@ -37,17 +39,18 @@ def summarize_news_articles(articles: list[dict]) -> list[dict]:
             {
                 "url": a.get("url", ""),
                 "title": a.get("title", "Untitled"),
-                "content": a["content"][:500]  # Truncate content to 500 characters to avoid token overload
+                "content": a["content"][
+                    :500
+                ],  # Truncate content to 500 characters to avoid token overload
             }
             for a in valid_articles
         ],
-        ensure_ascii=False
+        ensure_ascii=False,
     )
 
     system_prompt = (
         "You are a helpful assistant that outputs ONLY valid JSON. "
-        "Do NOT include any explanation, headers, or text outside of the JSON array."
-    )
+        "Do NOT include any explanation, headers, or text outside of the JSON array.")
     user_prompt = (
         "Below is a list of AI news articles in JSON format. Each article "
         "includes fields such as 'title', 'url', and 'content' (a short snippet of the article).\n\n"
@@ -60,33 +63,34 @@ def summarize_news_articles(articles: list[dict]) -> list[dict]:
         "Return only valid JSON with no extra text. The output should be an array, for example:\n"
         "[\n"
         "  {\n"
-        "    \"icon\": \"📜\",\n"
-        "    \"title\": \"Article title here\",\n"
-        "    \"summary\": \"A brief one-line summary.\",\n"
-        "    \"url\": \"https://example.com/article\"\n"
+        '    "icon": "📜",\n'
+        '    "title": "Article title here",\n'
+        '    "summary": "A brief one-line summary.",\n'
+        '    "url": "https://example.com/article"\n'
         "  },\n"
         "  ...\n"
         "]\n\n"
         "Articles:\n"
-        f"{article_json_str}"
-    )
+        f"{article_json_str}")
 
     # Initialize the Azure OpenAI client
     client = AzureOpenAI(
         api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-        api_version=os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-15-preview"),
-        azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT")
+        api_version=os.getenv(
+            "AZURE_OPENAI_API_VERSION",
+            "2024-02-15-preview"),
+        azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
     )
 
     try:
         chat_completion = client.chat.completions.create(
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
+                {"role": "user", "content": user_prompt},
             ],
             model="gpt-4o",  # Replace with the correct model name/variant for your account
             temperature=0.7,
-            max_tokens=1000
+            max_tokens=1000,
         )
         response_text = chat_completion.choices[0].message.content.strip()
         print("Azure response:", response_text)  # Debugging line
@@ -105,18 +109,15 @@ def summarize_news_articles(articles: list[dict]) -> list[dict]:
 
 if __name__ == "__main__":
     # Example input: A list of already-fetched articles
-    example_articles = [
-        {
-            "title": "AI Breakthrough in 2024",
-            "content": "Researchers have made a groundbreaking discovery in artificial intelligence that could change the future of machine learning and automation...",
-            "url": "https://example.com/ai-breakthrough-2024"
-        },
-        {
-            "title": "Tech Giants Launch New Products",
-            "content": "Leading technology companies have announced a new wave of products for 2024, including advanced AI tools, robotics, and consumer devices...",
-            "url": "https://example.com/tech-giants-products-2024"
-        }
-    ]
+    example_articles = [{"title": "AI Breakthrough in 2024",
+                         "content": "Researchers have made a groundbreaking discovery in artificial intelligence that could change the future of machine learning and automation...",
+                         "url": "https://example.com/ai-breakthrough-2024",
+                         },
+                        {"title": "Tech Giants Launch New Products",
+                         "content": "Leading technology companies have announced a new wave of products for 2024, including advanced AI tools, robotics, and consumer devices...",
+                         "url": "https://example.com/tech-giants-products-2024",
+                         },
+                        ]
 
     # Call the summarizer
     summarized_articles = summarize_news_articles(example_articles)

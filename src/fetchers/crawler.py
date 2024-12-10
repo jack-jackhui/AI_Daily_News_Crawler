@@ -1,7 +1,8 @@
 # src/fetchers/crawler.py
-from crawl4ai import AsyncWebCrawler
 import asyncio
 import datetime
+
+from crawl4ai import AsyncWebCrawler
 
 
 async def crawl_website(url: str) -> dict:
@@ -9,18 +10,18 @@ async def crawl_website(url: str) -> dict:
         try:
             result = await crawler.arun(url=url)
             return {
-                'content': result.markdown,
-                'timestamp': datetime.datetime.now().isoformat(),
-                'status': 'success',
-                'url': url
+                "content": result.markdown,
+                "timestamp": datetime.datetime.now().isoformat(),
+                "status": "success",
+                "url": url,
             }
         except Exception as e:
             return {
-                'content': '',
-                'timestamp': datetime.datetime.now().isoformat(),
-                'status': 'failure',
-                'url': url,
-                'error': str(e)
+                "content": "",
+                "timestamp": datetime.datetime.now().isoformat(),
+                "status": "failure",
+                "url": url,
+                "error": str(e),
             }
 
 

@@ -1,5 +1,6 @@
 # processors/formatter.py
 
+
 def format_summary(news_items: list[dict]) -> str:
     """
     Format a list of news items into the desired three-line format for each item:
