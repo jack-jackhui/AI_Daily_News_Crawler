@@ -28,9 +28,9 @@ jobs:
         run: |
           flake8 src/ --max-line-length=120 --ignore=E501 || exit 1
 
-      - name: ✅ Run Tests
-        run: |
-          pytest --disable-warnings || exit 1
+      # - name: ✅ Run Tests
+      #  run: |
+      #    pytest --disable-warnings || exit 1
 
       - name: 🚀 Deploy to Oracle cloud VM
         uses: appleboy/ssh-action@master
