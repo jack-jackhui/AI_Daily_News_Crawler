@@ -22,15 +22,18 @@ jobs:
       - name: 📦 Install dependencies
         run: |
           python -m pip install --upgrade pip
+          # Install numpy first to prevent dependency conflicts
+          pip install --no-cache-dir --no-deps numpy==1.26.0 
           pip install --no-cache-dir flake8 pytest -r requirements.txt --use-feature=fast-deps
+          pip install crawl4ai~=0.4.1  # Install crawl4ai separately to avoid dependency issues
 
       - name: ⚙️ Lint the code
         run: |
           flake8 src/ --max-line-length=120 --ignore=E501 || exit 1
 
-      # - name: ✅ Run Tests
-      #   run: |
-      #     pytest --disable-warnings || exit 1
+      #- name: ✅ Run Tests
+      #  run: |
+      #    pytest --disable-warnings || exit 1
 
       - name: 🚀 Deploy to Oracle cloud VM
         uses: appleboy/ssh-action@master
@@ -59,7 +62,9 @@ jobs:
             python -m pip install --upgrade pip
             
             echo "📦 Installing dependencies..."
+            pip install --no-cache-dir --no-deps numpy==1.26.0  # Install numpy first
             pip install --no-cache-dir -r requirements.txt --use-feature=fast-deps
+            pip install crawl4ai~=0.4.1  # Install crawl4ai separately
             
             echo "✅ Deployment completed successfully."
 
