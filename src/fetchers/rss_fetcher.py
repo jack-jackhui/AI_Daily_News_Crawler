@@ -1,7 +1,7 @@
 import logging
 import re
 from datetime import datetime, timedelta
-from urllib.parse import urlparse
+# from urllib.parse import urlparse
 
 import feedparser
 import textstat  # Make sure you have textstat installed

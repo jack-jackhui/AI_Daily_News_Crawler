@@ -1,7 +1,7 @@
 from processors.llm_reranker import re_rank_and_summarize_with_llm
 from processors.formatter import format_summary
 from outputs.telegram_sender import send_to_telegram
-from outputs.local_storage import save_summary_to_file
+# from outputs.local_storage import save_summary_to_file
 from fetchers.rss_fetcher import fetch_rss_feeds
 from config import SITES_CONFIG
 import asyncio
