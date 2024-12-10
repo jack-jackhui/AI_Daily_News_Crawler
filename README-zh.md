@@ -32,6 +32,7 @@
 ### 先决条件
 - 系统中必须安装Python 3.6或更高版本。
 - 需要安装一些必要的Python库，如BeautifulSoup、Requests以及Flask（用于消息推送界面）等。这些库可通过 `pip install -r requirements.txt` 命令进行安装。
+- 大语言模型（LLM）的 API 密钥。本应用默认使用的大语言模型是微软 Azure OpenAI。你需要在 .env 文件中自行配置你所使用的大语言模型的 API 密钥。
 ### 安装步骤
 1. 从GitHub克隆仓库：
    ```

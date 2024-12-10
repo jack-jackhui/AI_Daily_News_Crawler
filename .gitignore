@@ -8,3 +8,4 @@ venv/*
 AI+日报工作流.json
 src/daily_summary
 src/.tranco
+run_ai_news_crawler.sh

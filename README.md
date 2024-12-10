@@ -33,6 +33,7 @@ This is an open-source application designed to crawl the latest AI(or any types 
 ### Prerequisites
 - Python 3.6 or higher must be installed on the system.
 - Required Python libraries such as BeautifulSoup, Requests, and Flask (for the messaging interface) need to be installed. These can be installed using `pip install -r requirements.txt`.
+- LLM API key. The default LLM used is MS Azure OpenAI. Provision your own LLM API in .env file.
 ### Installation Steps
 1. Clone the repository from GitHub:
    ```
