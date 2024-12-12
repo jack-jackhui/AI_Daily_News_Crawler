@@ -17,5 +17,6 @@ SITES_CONFIG = [
     "https://ai-techpark.com/category/ai/feed/",
     "https://news.ycombinator.com/rss",
     "https://aibusiness.com/rss.xml",
+    "https://news.google.com/rss/search?q=blockchain&hl=en-US&gl=US&ceid=US:en",
     # Add more sites as needed
 ]
