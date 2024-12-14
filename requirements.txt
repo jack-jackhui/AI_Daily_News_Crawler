@@ -11,3 +11,4 @@ textstat~=0.7.4
 tranco~=0.8.1
 newspaper3k
 crawl4ai~=0.4.1
+itchat~=1.3.10

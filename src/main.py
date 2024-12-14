@@ -1,6 +1,7 @@
 from processors.llm_reranker import re_rank_and_summarize_with_llm
 from processors.formatter import format_summary
 from outputs.telegram_sender import send_to_telegram
+from outputs.wechat_sender import send_to_wechat
 # from outputs.local_storage import save_summary_to_file
 from fetchers.rss_fetcher import fetch_rss_feeds
 from config import SITES_CONFIG
@@ -61,9 +62,16 @@ async def run_pipeline():
         logger.info(f"Summary saved successfully to {file_path}")
 
         # 5. Send the formatted summary to Telegram
+        """
         logger.info("📲 Sending the summary to Telegram...")
         await send_to_telegram(formatted_summary)
         logger.info("Summary sent to Telegram successfully.")
+        """
+
+        # 6. Send the formatted summary to WeChat
+        logger.info("📲 Sending the summary to WeChat...")
+        send_to_wechat(formatted_summary)  # Call send_to_wechat function from wechat_sender.py
+        logger.info("Summary sent to WeChat successfully.")
 
         logger.info("🎉 Pipeline complete.")
     except Exception as e:
