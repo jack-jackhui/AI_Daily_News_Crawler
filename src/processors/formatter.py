@@ -28,7 +28,7 @@ def format_summary(news_items: list[dict]) -> str:
 
     # Add footer section
     footer_separator = "-----"  # 5 dash separator
-    footer_text = f"The Daily AI News Digest is brought to you by **#JackHui.com.au**! To know more: [JackHui.com.au](https://jackhui.com.au)"
+    footer_text = "The Daily AI News Digest is brought to you by **#JackHui.com.au**! To know more: [JackHui.com.au](https://jackhui.com.au)"
 
     formatted_lines.append(footer_separator)
     formatted_lines.append(footer_text)

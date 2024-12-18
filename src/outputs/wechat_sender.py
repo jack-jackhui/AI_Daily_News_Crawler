@@ -9,6 +9,7 @@ load_dotenv()
 # Set up logger
 logger = logging.getLogger(__name__)
 
+
 def send_to_wechat(message):
     """Send a message to a WeChat group via the /send_message API endpoint"""
     try:
