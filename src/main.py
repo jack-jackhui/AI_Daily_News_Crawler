@@ -70,7 +70,6 @@ async def run_pipeline():
         await send_to_telegram(formatted_summary)
         logger.info("Summary sent to Telegram successfully.")
 
-
         # 6. Send the formatted summary to WeChat
         """
         logger.info("📲 Sending the summary to WeChat...")
@@ -86,7 +85,6 @@ async def run_pipeline():
         logger.info("🎉 Pipeline complete.")
     except Exception as e:
         logger.error(f"❌ Error occurred while running the pipeline: {str(e)}")
-
 
 if __name__ == "__main__":
     asyncio.run(run_pipeline())
