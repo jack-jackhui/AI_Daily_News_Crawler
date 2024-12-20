@@ -1,7 +1,7 @@
 from processors.llm_reranker import re_rank_and_summarize_with_llm
 from processors.formatter import format_summary
 from outputs.telegram_sender import send_to_telegram
-# from outputs.wechat_sender import send_to_wechat
+from outputs.wechat_sender import send_to_wechat
 from outputs.wordpress_publisher import publish_daily_news_to_wordpress
 # from outputs.local_storage import save_summary_to_file
 from fetchers.rss_fetcher import fetch_rss_feeds
@@ -71,11 +71,9 @@ async def run_pipeline():
         logger.info("Summary sent to Telegram successfully.")
 
         # 6. Send the formatted summary to WeChat
-        """
         logger.info("📲 Sending the summary to WeChat...")
         send_to_wechat(formatted_summary)  # Call send_to_wechat function from wechat_sender.py
         logger.info("Summary sent to WeChat successfully.")
-        """
 
         # 7. Publish the daily news summary to WordPress
         logger.info("🌐 Publishing the daily news summary to WordPress...")
