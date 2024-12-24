@@ -3,6 +3,8 @@ from processors.formatter import format_summary
 from outputs.telegram_sender import send_to_telegram
 from outputs.wechat_sender import send_to_wechat
 from outputs.wordpress_publisher import publish_daily_news_to_wordpress
+from outputs.twitter_publisher import publish_tweet_for_blog_post, generate_tweet_content
+from outputs.threads_publisher import publish_thread_for_blog_post
 # from outputs.local_storage import save_summary_to_file
 from fetchers.rss_fetcher import fetch_rss_feeds
 from config import SITES_CONFIG
@@ -11,7 +13,6 @@ import logging
 import os
 import sys
 from datetime import datetime
-
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -77,12 +78,36 @@ async def run_pipeline():
 
         # 7. Publish the daily news summary to WordPress
         logger.info("🌐 Publishing the daily news summary to WordPress...")
-        publish_daily_news_to_wordpress(formatted_summary, category_id=DAILY_AI_NEWS_CATEGORY_ID)
-        logger.info("✅ Daily news summary published to WordPress successfully.")
+        wordpress_response = publish_daily_news_to_wordpress(
+            news_content=formatted_summary,
+            post_title="Daily Tech & AI News Digest",
+            category_id=DAILY_AI_NEWS_CATEGORY_ID,
+        )
+
+        if wordpress_response:
+            blog_post_url = wordpress_response.get("link")
+            logger.info(f"✅ Blog post published successfully. URL: {blog_post_url}")
+
+            # 8. Generate content for Twitter and Threads
+            logger.info("🐦 Generating content for Twitter and Threads...")
+            tweet_content = generate_tweet_content(blog_post_url)
+
+            # Publish tweet
+            logger.info("🐦 Publishing a tweet for the daily news digest...")
+            publish_tweet_for_blog_post(tweet_content)
+            logger.info("✅ Tweet published successfully.")
+
+            # Publish Threads post
+            logger.info("📤 Publishing a Threads post for the daily news digest...")
+            publish_thread_for_blog_post(blog_post_url, tweet_content)
+            logger.info("✅ Threads post published successfully.")
+        else:
+            logger.error("❌ Failed to publish the daily news summary to WordPress. Skipping tweet.")
 
         logger.info("🎉 Pipeline complete.")
     except Exception as e:
         logger.error(f"❌ Error occurred while running the pipeline: {str(e)}")
+
 
 if __name__ == "__main__":
     asyncio.run(run_pipeline())
