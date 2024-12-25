@@ -108,6 +108,5 @@ async def run_pipeline():
     except Exception as e:
         logger.error(f"❌ Error occurred while running the pipeline: {str(e)}")
 
-
 if __name__ == "__main__":
     asyncio.run(run_pipeline())

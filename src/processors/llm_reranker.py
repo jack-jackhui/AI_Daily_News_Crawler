@@ -1,15 +1,19 @@
 import json
 import logging
 import os
-
 from dotenv import load_dotenv
 from openai import AzureOpenAI
 
 # Load environment variables
 load_dotenv()
 
+# Configure logger with timestamps
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler()],
+)
 logger = logging.getLogger(__name__)
-
 
 def re_rank_and_summarize_with_llm(articles: list[dict]) -> list[dict]:
     """
@@ -98,7 +102,13 @@ def re_rank_and_summarize_with_llm(articles: list[dict]) -> list[dict]:
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse JSON from LLM response. Error: {e}")
             logger.debug(f"LLM response text: {response_text}")
-            return []
+            # Attempt fallback cleanup if JSON fails
+            try:
+                response_text = response_text.strip("```")
+                return json.loads(response_text)
+            except Exception as fallback_error:
+                logger.error(f"Fallback JSON parsing also failed: {fallback_error}")
+                return []
 
     except Exception as e:
         logger.error(f"Error while re-ranking and summarizing articles with LLM: {e}")
