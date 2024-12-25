@@ -1,6 +1,6 @@
 import os
 import logging
-import requests
+# import requests
 import tweepy
 from dotenv import load_dotenv
 from openai import AzureOpenAI

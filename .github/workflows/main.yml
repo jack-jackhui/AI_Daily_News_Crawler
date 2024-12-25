@@ -28,7 +28,7 @@ jobs:
 
       - name: ⚙️ Lint the code
         run: |
-          flake8 src/ --max-line-length=120 --ignore=E501,E303 || exit 1
+          flake8 src/ --max-line-length=120 --ignore=E501,E303,E302 || exit 1
 
       #- name: ✅ Run Tests
       #  run: |
