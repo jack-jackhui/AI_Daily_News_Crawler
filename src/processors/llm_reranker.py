@@ -3,7 +3,7 @@ import logging
 import os
 from dotenv import load_dotenv
 from openai import AzureOpenAI
-
+import re
 # Load environment variables
 load_dotenv()
 
@@ -14,6 +14,23 @@ logging.basicConfig(
     handlers=[logging.StreamHandler()],
 )
 logger = logging.getLogger(__name__)
+
+def repair_json(response_text):
+    """
+    Attempt to repair incomplete JSON by adding missing brackets or commas.
+    """
+    response_text = response_text.strip()
+
+    # Ensure it starts with '[' and ends with ']'
+    if not response_text.startswith("["):
+        response_text = "[" + response_text
+    if not response_text.endswith("]"):
+        response_text += "]"
+
+    # Remove invalid trailing commas
+    response_text = re.sub(r",\s*]", "]", response_text)
+
+    return response_text
 
 def re_rank_and_summarize_with_llm(articles: list[dict]) -> list[dict]:
     """
@@ -33,7 +50,7 @@ def re_rank_and_summarize_with_llm(articles: list[dict]) -> list[dict]:
         [
             {
                 "url": a.get("url", ""),
-                "title": a.get("title", "Untitled"),
+                "title": a.get("title", "Untitled")[:100],
                 "content": a.get("content", "")[
                     :500
                 ],  # Limit content to avoid token overflow
@@ -87,10 +104,12 @@ def re_rank_and_summarize_with_llm(articles: list[dict]) -> list[dict]:
             ],
             model="gpt-4o",  # Replace with the correct model
             temperature=0.7,
-            max_tokens=1000,
+            max_tokens=2000,
         )
         response_text = chat_completion.choices[0].message.content.strip()
-        logger.info(f"Azure response: {response_text}")
+        logger.info(f"Raw LLM response before parsing: {response_text}")
+
+        response_text = repair_json(response_text)
 
         try:
             re_ranked_and_summarized_articles = json.loads(response_text)
@@ -101,14 +120,8 @@ def re_rank_and_summarize_with_llm(articles: list[dict]) -> list[dict]:
                 return []
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse JSON from LLM response. Error: {e}")
-            logger.debug(f"LLM response text: {response_text}")
-            # Attempt fallback cleanup if JSON fails
-            try:
-                response_text = response_text.strip("```")
-                return json.loads(response_text)
-            except Exception as fallback_error:
-                logger.error(f"Fallback JSON parsing also failed: {fallback_error}")
-                return []
+            logger.debug(f"Repaired LLM response text: {response_text}")
+            return []
 
     except Exception as e:
         logger.error(f"Error while re-ranking and summarizing articles with LLM: {e}")
