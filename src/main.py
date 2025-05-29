@@ -105,6 +105,7 @@ async def run_pipeline():
             logger.error("❌ Failed to publish the daily news summary to WordPress. Skipping tweet.")
 
         logger.info("🎉 Pipeline complete.")
+
     except Exception as e:
         logger.error(f"❌ Error occurred while running the pipeline: {str(e)}")
 

@@ -78,7 +78,7 @@ def summarize_news_articles(articles: list[dict]) -> list[dict]:
         api_key=os.getenv("AZURE_OPENAI_API_KEY"),
         api_version=os.getenv(
             "AZURE_OPENAI_API_VERSION",
-            "2024-02-15-preview"),
+            "2025-01-01-preview"),
         azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
     )
 
@@ -88,7 +88,7 @@ def summarize_news_articles(articles: list[dict]) -> list[dict]:
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
-            model="gpt-4o",  # Replace with the correct model name/variant for your account
+            model=os.getenv("AZURE_OPENAI_MODEL"),  # Replace with the correct model name/variant for your account
             temperature=0.7,
             max_tokens=1000,
         )

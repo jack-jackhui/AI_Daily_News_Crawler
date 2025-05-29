@@ -1,7 +1,7 @@
 AZURE_OPENAI_ENDPOINT = "https://<your-openai-endpoint>.openai.azure.com/"
 AZURE_OPENAI_KEY = "YOUR_AZURE_OPENAI_KEY"
 AZURE_OPENAI_DEPLOYMENT = "your-deployment-name"
-AZURE_OPENAI_API_VERSION = "2023-09-01-preview"
+AZURE_OPENAI_API_VERSION = "2025-01-01-preview"
 
 SITES_CONFIG = [
     "https://technode.com/feed/",
