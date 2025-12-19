@@ -104,7 +104,7 @@ def re_rank_and_summarize_with_llm(articles: list[dict]) -> list[dict]:
             ],
             model=os.getenv("AZURE_OPENAI_MODEL"),  # Replace with the correct model
             temperature=0.7,
-            max_tokens=2000,
+            max_completion_tokens=2000,
         )
         response_text = chat_completion.choices[0].message.content.strip()
         logger.info(f"Raw LLM response before parsing: {response_text}")
