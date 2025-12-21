@@ -54,7 +54,7 @@ def generate_tweet_content(blog_post_url):
             ],
             model="gpt-4o",  # Replace with the correct model
             temperature=1,
-            max_tokens=180,
+            max_completion_tokens=180,
         )
         tweet_content = response.choices[0].message.content.strip()
         logger.info(f"Azure OpenAI response: {tweet_content}")

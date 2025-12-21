@@ -103,7 +103,7 @@ def re_rank_and_summarize_with_llm(articles: list[dict]) -> list[dict]:
                 {"role": "user", "content": user_prompt},
             ],
             model=os.getenv("AZURE_OPENAI_MODEL"),  # Replace with the correct model
-            temperature=0.7,
+            temperature=1,
             max_completion_tokens=2000,
         )
         response_text = chat_completion.choices[0].message.content.strip()

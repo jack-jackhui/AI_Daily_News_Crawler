@@ -54,7 +54,7 @@ def generate_thread_content(blog_post_url):
             ],
             model="gpt-4o",  # Replace with the correct model
             temperature=1,
-            max_tokens=500,
+            max_completion_tokens=500,
         )
         thread_content = response.choices[0].message.content.strip()
         logger.info(f"Azure OpenAI response: {thread_content}")

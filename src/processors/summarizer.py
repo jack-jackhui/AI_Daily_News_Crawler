@@ -89,8 +89,8 @@ def summarize_news_articles(articles: list[dict]) -> list[dict]:
                 {"role": "user", "content": user_prompt},
             ],
             model=os.getenv("AZURE_OPENAI_MODEL"),  # Replace with the correct model name/variant for your account
-            temperature=0.7,
-            max_tokens=1000,
+            temperature=1,
+            max_completion_tokens=1000,
         )
         response_text = chat_completion.choices[0].message.content.strip()
         print("Azure response:", response_text)  # Debugging line
