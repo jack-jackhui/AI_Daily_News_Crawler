@@ -94,13 +94,19 @@ async def run_pipeline():
 
             # Publish tweet
             logger.info("🐦 Publishing a tweet for the daily news digest...")
-            publish_tweet_for_blog_post(tweet_content)
-            logger.info("✅ Tweet published successfully.")
+            tweet_success = publish_tweet_for_blog_post(tweet_content)
+            if tweet_success:
+                logger.info("✅ Tweet published successfully.")
+            else:
+                logger.warning("⚠️ Tweet publishing failed. Check Twitter API credentials.")
 
             # Publish Threads post
             logger.info("📤 Publishing a Threads post for the daily news digest...")
-            publish_thread_for_blog_post(blog_post_url, tweet_content)
-            logger.info("✅ Threads post published successfully.")
+            threads_success = publish_thread_for_blog_post(blog_post_url, tweet_content)
+            if threads_success:
+                logger.info("✅ Threads post published successfully.")
+            else:
+                logger.warning("⚠️ Threads publishing failed. Check Threads API access token.")
         else:
             logger.error("❌ Failed to publish the daily news summary to WordPress. Skipping tweet.")
 

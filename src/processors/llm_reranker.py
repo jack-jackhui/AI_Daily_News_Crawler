@@ -17,9 +17,26 @@ logger = logging.getLogger(__name__)
 
 def repair_json(response_text):
     """
-    Attempt to repair incomplete JSON by adding missing brackets or commas.
+    Attempt to repair incomplete or malformed JSON from LLM responses.
+    Handles:
+    - Markdown code blocks (```json ... ```)
+    - Unquoted emoji values ("icon": 🤖 -> "icon": "🤖")
+    - Missing brackets
+    - Trailing commas
     """
     response_text = response_text.strip()
+
+    # Remove markdown code blocks if present
+    if response_text.startswith("```"):
+        # Remove opening ```json or ``` and closing ```
+        response_text = re.sub(r"^```(?:json)?\s*\n?", "", response_text)
+        response_text = re.sub(r"\n?```\s*$", "", response_text)
+        response_text = response_text.strip()
+
+    # Fix unquoted emoji values: "icon": 🤖 -> "icon": "🤖"
+    # This pattern matches "icon": followed by an emoji (not in quotes)
+    emoji_pattern = r'("icon"\s*:\s*)([^\s",\[\]{}][^\s,\[\]{}]*?)(\s*[,}\]])'
+    response_text = re.sub(emoji_pattern, r'\1"\2"\3', response_text)
 
     # Ensure it starts with '[' and ends with ']'
     if not response_text.startswith("["):

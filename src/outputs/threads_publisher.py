@@ -151,6 +151,9 @@ def publish_thread_for_blog_post(blog_post_url, tweet_content):
     Args:
         blog_post_url (str): The URL of the blog post.
         tweet_content (str): The pre-generated content to use for the Threads post.
+
+    Returns:
+        bool: True if Threads post was published successfully, False otherwise.
     """
     try:
         # Step 1: Create the media container
@@ -162,5 +165,7 @@ def publish_thread_for_blog_post(blog_post_url, tweet_content):
 
         # Step 2: Publish the media container
         publish_threads_media_container(creation_id)
+        return True
     except Exception as e:
         logger.error(f"❌ Failed to publish Threads post for blog post: {e}")
+        return False

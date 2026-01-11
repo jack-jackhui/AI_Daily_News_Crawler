@@ -84,9 +84,14 @@ def send_tweet_via_tweepy(tweet_content):
         raise
 
 def publish_tweet_for_blog_post(tweet_content):
-    """Main function to generate and send a tweet for the blog post."""
+    """Main function to generate and send a tweet for the blog post.
+
+    Returns:
+        bool: True if tweet was published successfully, False otherwise.
+    """
     try:
-        # tweet_content = generate_tweet_content(blog_post_url)
         send_tweet_via_tweepy(tweet_content)
+        return True
     except Exception as e:
         logger.error(f"❌ Failed to publish tweet for blog post: {e}")
+        return False
