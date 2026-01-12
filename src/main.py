@@ -5,6 +5,7 @@ from outputs.wechat_sender import send_to_wechat
 from outputs.wordpress_publisher import publish_daily_news_to_wordpress
 from outputs.twitter_publisher import publish_tweet_for_blog_post, generate_tweet_content
 from outputs.threads_publisher import publish_thread_for_blog_post
+from utils.threads_token_manager import validate_and_refresh_token
 # from outputs.local_storage import save_summary_to_file
 from fetchers.rss_fetcher import fetch_rss_feeds
 from config import SITES_CONFIG
@@ -35,6 +36,11 @@ DAILY_AI_NEWS_CATEGORY_ID = 103  # Replace with the actual category ID
 
 async def run_pipeline():
     try:
+        # Pre-validate Threads token at startup (auto-refreshes if expiring soon)
+        logger.info("🔐 Validating API tokens...")
+        threads_ok, threads_msg, _ = validate_and_refresh_token(auto_update_env=True)
+        logger.info(f"   Threads: {threads_msg}")
+
         logger.info("📡 Fetching articles from RSS feeds...")
         rss_feed_urls = SITES_CONFIG
 

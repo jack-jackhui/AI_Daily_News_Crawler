@@ -16,10 +16,48 @@ logging.basicConfig(level=logging.INFO)
 THREADS_USER_ID = os.getenv("THREADS_USER_ID")  # Replace with your Threads user ID
 THREADS_ACCESS_TOKEN = os.getenv("THREADS_ACCESS_TOKEN")  # Access token for Threads Graph API
 
+# Token validation state (cached to avoid repeated API calls)
+_token_validated = False
+_current_valid_token = None
+
 # Azure OpenAI API Credentials
 AZURE_OPENAI_API_KEY = os.getenv("AZURE_OPENAI_API_KEY")
 AZURE_OPENAI_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT")
 AZURE_OPENAI_API_VERSION = os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-15-preview")
+
+
+def get_valid_token():
+    """
+    Get a valid Threads access token, validating and refreshing if needed.
+
+    Returns:
+        str: Valid access token, or None if validation fails
+    """
+    global _token_validated, _current_valid_token
+
+    # Return cached token if already validated this session
+    if _token_validated and _current_valid_token:
+        return _current_valid_token
+
+    try:
+        from utils.threads_token_manager import validate_and_refresh_token
+
+        success, message, token = validate_and_refresh_token(auto_update_env=True)
+        logger.info(f"🔐 Token validation: {message}")
+
+        if success and token:
+            _token_validated = True
+            _current_valid_token = token
+            return token
+        else:
+            logger.error(f"❌ Token validation failed: {message}")
+            return None
+
+    except ImportError:
+        # Fallback if token manager not available
+        logger.warning("⚠️ Token manager not available, using token without validation")
+        return THREADS_ACCESS_TOKEN
+
 
 def create_openai_client():
     """Initialize and return the Azure OpenAI client."""
@@ -74,9 +112,15 @@ def create_threads_media_container(post_content, blog_post_url):
     Returns:
         str: The creation ID of the media container.
     """
-    if not THREADS_USER_ID or not THREADS_ACCESS_TOKEN:
-        logger.error("❌ Threads API configuration is missing. Check environment variables.")
+    if not THREADS_USER_ID:
+        logger.error("❌ THREADS_USER_ID is missing. Check environment variables.")
         raise ValueError("Threads API configuration is missing.")
+
+    # Get validated token (with auto-refresh if needed)
+    access_token = get_valid_token()
+    if not access_token:
+        logger.error("❌ No valid Threads access token available.")
+        raise ValueError("Threads access token is invalid or expired. Please re-authenticate.")
 
     try:
         # Define the Threads API endpoint for media container creation
@@ -84,7 +128,7 @@ def create_threads_media_container(post_content, blog_post_url):
 
         # Prepare payload
         payload = {
-            "access_token": THREADS_ACCESS_TOKEN,
+            "access_token": access_token,
             "media_type": "TEXT",
             "text": f"{post_content}\n\n{blog_post_url}",
         }
@@ -115,9 +159,15 @@ def publish_threads_media_container(creation_id):
     Returns:
         dict: The response from the Threads API.
     """
-    if not THREADS_USER_ID or not THREADS_ACCESS_TOKEN:
-        logger.error("❌ Threads API configuration is missing. Check environment variables.")
+    if not THREADS_USER_ID:
+        logger.error("❌ THREADS_USER_ID is missing. Check environment variables.")
         raise ValueError("Threads API configuration is missing.")
+
+    # Get validated token (uses cached value from create step)
+    access_token = get_valid_token()
+    if not access_token:
+        logger.error("❌ No valid Threads access token available.")
+        raise ValueError("Threads access token is invalid or expired.")
 
     try:
         # Define the Threads API endpoint for publishing
@@ -125,7 +175,7 @@ def publish_threads_media_container(creation_id):
 
         # Prepare payload
         payload = {
-            "access_token": THREADS_ACCESS_TOKEN,
+            "access_token": access_token,
             "creation_id": creation_id,
         }
 
