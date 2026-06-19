@@ -1,6 +1,6 @@
 import os
 import logging
-# import requests
+import requests
 import tweepy
 from dotenv import load_dotenv
 from openai import AzureOpenAI
@@ -17,6 +17,13 @@ TWITTER_API_SECRET_KEY = os.getenv("TWITTER_API_SECRET_KEY")
 TWITTER_ACCESS_TOKEN = os.getenv("TWITTER_ACCESS_TOKEN")
 TWITTER_ACCESS_TOKEN_SECRET = os.getenv("TWITTER_ACCESS_TOKEN_SECRET")
 TWITTER_BEARER_TOKEN = os.getenv("TWITTER_BEARER_TOKEN")
+
+# X/Twitter posting mode
+X_POST_METHOD = os.getenv("X_POST_METHOD", "api").strip().lower()
+N8N_X_POST_WEBHOOK_URL = os.getenv("N8N_X_POST_WEBHOOK_URL")
+N8N_X_POST_TOKEN = os.getenv("N8N_X_POST_TOKEN")
+N8N_X_POST_TIMEOUT_SECONDS = int(os.getenv("N8N_X_POST_TIMEOUT_SECONDS", "360"))
+X_POST_DRY_RUN = os.getenv("X_POST_DRY_RUN", "false").strip().lower() in {"1", "true", "yes", "on"}
 
 # Azure OpenAI API Credentials
 AZURE_OPENAI_API_KEY = os.getenv("AZURE_OPENAI_API_KEY")
@@ -75,7 +82,7 @@ def send_tweet_via_tweepy(tweet_content):
             access_token_secret=TWITTER_ACCESS_TOKEN_SECRET,
         )
 
-        logger.info("📤 Sending tweet...")
+        logger.info("📤 Sending tweet via Twitter API...")
         response = client.create_tweet(text=tweet_content)
         logger.info(f"✅ Tweet sent successfully. Tweet ID: {response.data['id']}")
         return response.data
@@ -83,14 +90,75 @@ def send_tweet_via_tweepy(tweet_content):
         logger.error(f"❌ Failed to send tweet via Tweepy: {e}")
         raise
 
+def send_tweet_via_browser_bridge(tweet_content):
+    """Send the tweet through the n8n X browser-posting bridge."""
+    if not N8N_X_POST_WEBHOOK_URL:
+        raise ValueError("N8N_X_POST_WEBHOOK_URL is required when X_POST_METHOD=browser")
+
+    payload = {
+        "text": tweet_content,
+        "source": "AI_Daily_News_Crawler",
+        "dryRun": X_POST_DRY_RUN,
+    }
+    headers = {
+        "Content-Type": "application/json",
+        "User-Agent": "AI_Daily_News_Crawler/1.0",
+    }
+    if N8N_X_POST_TOKEN:
+        headers["X-Daily-News-Token"] = N8N_X_POST_TOKEN
+
+    logger.info("📤 Sending tweet via n8n X browser bridge...")
+    response = requests.post(
+        N8N_X_POST_WEBHOOK_URL,
+        json=payload,
+        headers=headers,
+        timeout=N8N_X_POST_TIMEOUT_SECONDS,
+    )
+    response.raise_for_status()
+
+    try:
+        result = response.json()
+    except ValueError as exc:
+        raise RuntimeError(f"Browser bridge returned non-JSON response: {response.text[:200]}") from exc
+
+    if result.get("ok") is not True:
+        raise RuntimeError(f"Browser bridge failed: {result.get('error') or result}")
+
+    if X_POST_DRY_RUN:
+        if result.get("posted") is True:
+            raise RuntimeError("Browser bridge dry-run unexpectedly reported posted=true")
+        logger.info("✅ Browser bridge dry-run completed successfully.")
+        return result
+
+    if result.get("posted") is not True:
+        raise RuntimeError(f"Browser bridge did not confirm posted=true: {result}")
+
+    logger.info("✅ Tweet sent successfully via browser bridge.")
+    return result
+
 def publish_tweet_for_blog_post(tweet_content):
-    """Main function to generate and send a tweet for the blog post.
+    """Publish a tweet for the blog post.
+
+    X_POST_METHOD controls posting behavior:
+    - api (default): use the existing Tweepy/Twitter API flow.
+    - browser: call the n8n X browser-posting webhook bridge.
+    - disabled: skip X posting and return success so the rest of the pipeline stays green.
 
     Returns:
-        bool: True if tweet was published successfully, False otherwise.
+        bool: True if tweet was published or intentionally skipped, False otherwise.
     """
     try:
-        send_tweet_via_tweepy(tweet_content)
+        method = X_POST_METHOD
+        if method == "api":
+            send_tweet_via_tweepy(tweet_content)
+        elif method == "browser":
+            send_tweet_via_browser_bridge(tweet_content)
+        elif method == "disabled":
+            logger.info("⏭️ X/Twitter posting disabled by X_POST_METHOD=disabled; skipping.")
+            return True
+        else:
+            logger.error(f"❌ Unsupported X_POST_METHOD={method!r}. Use api, browser, or disabled.")
+            return False
         return True
     except Exception as e:
         logger.error(f"❌ Failed to publish tweet for blog post: {e}")

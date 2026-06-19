@@ -51,6 +51,27 @@ This is an open-source application designed to crawl the latest AI(or any types 
 1. Edit the `config.py` file to set up the news sources you want to crawl. You can add or remove URLs of different AI news websites.
 2. Configure the messaging interface settings, such as the port number and any authentication requirements (if applicable).
 
+### X/Twitter posting
+
+X posting is controlled with `X_POST_METHOD`:
+
+- `api` (default): use the existing Tweepy/Twitter API credentials.
+- `browser`: send the prepared post to an n8n webhook bridge that posts through browser automation.
+- `disabled`: skip X posting and return success so the rest of the daily pipeline can continue.
+
+Example browser-bridge environment variables:
+
+```bash
+X_POST_METHOD=browser
+N8N_X_POST_WEBHOOK_URL=https://automate.example.com/webhook/x-browser-post
+N8N_X_POST_TOKEN=replace-with-bridge-token
+N8N_X_POST_TIMEOUT_SECONDS=360
+# Optional verification mode; when true the bridge must not publish publicly.
+X_POST_DRY_RUN=false
+```
+
+Keep the existing `TWITTER_API_KEY`, `TWITTER_API_SECRET_KEY`, `TWITTER_ACCESS_TOKEN`, `TWITTER_ACCESS_TOKEN_SECRET`, and `TWITTER_BEARER_TOKEN` values if you want to fall back to `X_POST_METHOD=api`.
+
 ## Usage
 1. Run the news crawler script:
    ```
