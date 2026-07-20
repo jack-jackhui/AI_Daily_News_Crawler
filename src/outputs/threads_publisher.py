@@ -3,7 +3,7 @@ import logging
 import requests
 import time
 from dotenv import load_dotenv
-from openai import AzureOpenAI
+from utils.llm_client import get_llm_client, get_llm_model, get_llm_provider
 
 # Load environment variables
 load_dotenv()
@@ -20,10 +20,7 @@ THREADS_ACCESS_TOKEN = os.getenv("THREADS_ACCESS_TOKEN")  # Access token for Thr
 _token_validated = False
 _current_valid_token = None
 
-# Azure OpenAI API Credentials
-AZURE_OPENAI_API_KEY = os.getenv("AZURE_OPENAI_API_KEY")
-AZURE_OPENAI_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT")
-AZURE_OPENAI_API_VERSION = os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-15-preview")
+# LLM settings are resolved lazily by utils.llm_client.
 
 
 def get_valid_token():
@@ -60,19 +57,15 @@ def get_valid_token():
 
 
 def create_openai_client():
-    """Initialize and return the Azure OpenAI client."""
+    """Initialize and return the configured LLM client."""
     try:
-        return AzureOpenAI(
-            api_key=AZURE_OPENAI_API_KEY,
-            api_version=AZURE_OPENAI_API_VERSION,
-            azure_endpoint=AZURE_OPENAI_ENDPOINT,
-        )
+        return get_llm_client()
     except Exception as e:
-        logger.error(f"❌ Failed to initialize Azure OpenAI client: {e}")
+        logger.error(f"❌ Failed to initialize LLM client: {e}")
         raise
 
 def generate_thread_content(blog_post_url):
-    """Generate a Threads post content using Azure OpenAI."""
+    """Generate Threads post content using the configured LLM."""
     client = create_openai_client()
 
     # System and user prompts
@@ -84,18 +77,18 @@ def generate_thread_content(blog_post_url):
     user_prompt = f"Blog post link: {blog_post_url}"
 
     try:
-        logger.info("🧠 Generating Threads post content using Azure OpenAI...")
+        logger.info("🧠 Generating Threads post content using %s...", get_llm_provider())
         response = client.chat.completions.create(
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
-            model="gpt-4o",  # Replace with the correct model
+            model=get_llm_model("gpt-4o"),
             temperature=1,
             max_completion_tokens=500,
         )
         thread_content = response.choices[0].message.content.strip()
-        logger.info(f"Azure OpenAI response: {thread_content}")
+        logger.info(f"LLM response: {thread_content}")
         return thread_content
     except Exception as e:
         logger.error(f"❌ Failed to generate Threads post content: {e}")

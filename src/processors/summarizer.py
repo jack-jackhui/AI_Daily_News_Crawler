@@ -2,7 +2,7 @@ import json
 import os
 
 from dotenv import load_dotenv
-from openai import AzureOpenAI
+from utils.llm_client import get_llm_client, get_llm_model
 
 # Load environment variables from .env
 load_dotenv()
@@ -73,14 +73,7 @@ def summarize_news_articles(articles: list[dict]) -> list[dict]:
         "Articles:\n"
         f"{article_json_str}")
 
-    # Initialize the Azure OpenAI client
-    client = AzureOpenAI(
-        api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-        api_version=os.getenv(
-            "AZURE_OPENAI_API_VERSION",
-            "2025-01-01-preview"),
-        azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-    )
+    client = get_llm_client()
 
     try:
         chat_completion = client.chat.completions.create(
@@ -88,12 +81,12 @@ def summarize_news_articles(articles: list[dict]) -> list[dict]:
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
-            model=os.getenv("AZURE_OPENAI_MODEL"),  # Replace with the correct model name/variant for your account
+            model=get_llm_model(),
             temperature=1,
             max_completion_tokens=1000,
         )
         response_text = chat_completion.choices[0].message.content.strip()
-        print("Azure response:", response_text)  # Debugging line
+        print("LLM response:", response_text)  # Debugging line
 
         # Attempt to parse the returned JSON
         summarized_articles = json.loads(response_text)

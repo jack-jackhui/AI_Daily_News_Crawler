@@ -2,8 +2,8 @@ import json
 import logging
 import os
 from dotenv import load_dotenv
-from openai import AzureOpenAI
 import re
+from utils.llm_client import get_llm_client, get_llm_model, get_llm_provider
 # Load environment variables
 load_dotenv()
 
@@ -107,11 +107,8 @@ def re_rank_and_summarize_with_llm(articles: list[dict]) -> list[dict]:
         f"{article_json_str}"
     )
 
-    client = AzureOpenAI(
-        api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-        api_version=os.getenv("AZURE_OPENAI_API_VERSION", "2025-01-01-preview"),
-        azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-    )
+    client = get_llm_client()
+    logger.info("Using %s model %s", get_llm_provider(), get_llm_model())
 
     try:
         chat_completion = client.chat.completions.create(
@@ -119,7 +116,7 @@ def re_rank_and_summarize_with_llm(articles: list[dict]) -> list[dict]:
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
-            model=os.getenv("AZURE_OPENAI_MODEL"),  # Replace with the correct model
+            model=get_llm_model(),
             temperature=1,
             max_completion_tokens=2000,
         )

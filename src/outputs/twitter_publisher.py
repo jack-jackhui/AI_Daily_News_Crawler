@@ -3,7 +3,7 @@ import logging
 import requests
 import tweepy
 from dotenv import load_dotenv
-from openai import AzureOpenAI
+from utils.llm_client import get_llm_client, get_llm_model, get_llm_provider
 
 # Load environment variables
 load_dotenv()
@@ -25,25 +25,16 @@ N8N_X_POST_TOKEN = os.getenv("N8N_X_POST_TOKEN")
 N8N_X_POST_TIMEOUT_SECONDS = int(os.getenv("N8N_X_POST_TIMEOUT_SECONDS", "360"))
 X_POST_DRY_RUN = os.getenv("X_POST_DRY_RUN", "false").strip().lower() in {"1", "true", "yes", "on"}
 
-# Azure OpenAI API Credentials
-AZURE_OPENAI_API_KEY = os.getenv("AZURE_OPENAI_API_KEY")
-AZURE_OPENAI_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT")
-AZURE_OPENAI_API_VERSION = os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-15-preview")
-
 def create_openai_client():
-    """Initialize and return the Azure OpenAI client."""
+    """Initialize and return the configured LLM client."""
     try:
-        return AzureOpenAI(
-            api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-            api_version=os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-15-preview"),
-            azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-        )
+        return get_llm_client()
     except Exception as e:
-        logger.error(f"❌ Failed to initialize Azure OpenAI client: {e}")
+        logger.error(f"❌ Failed to initialize LLM client: {e}")
         raise
 
 def generate_tweet_content(blog_post_url):
-    """Generate a tweet content using Azure OpenAI."""
+    """Generate tweet content using the configured LLM."""
     client = create_openai_client()
 
     # System and user prompts
@@ -53,18 +44,18 @@ def generate_tweet_content(blog_post_url):
     user_prompt = f"Hey, here's the link to our must-read Daily AI News Digest blog post: {blog_post_url}. Let's dive into the future of AI together! 🔥 #DailyAINews"
 
     try:
-        logger.info("🧠 Generating tweet content using Azure OpenAI...")
+        logger.info("🧠 Generating tweet content using %s...", get_llm_provider())
         response = client.chat.completions.create(
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
-            model="gpt-4o",  # Replace with the correct model
+            model=get_llm_model("gpt-4o"),
             temperature=1,
             max_completion_tokens=180,
         )
         tweet_content = response.choices[0].message.content.strip()
-        logger.info(f"Azure OpenAI response: {tweet_content}")
+        logger.info(f"LLM response: {tweet_content}")
         return tweet_content
     except Exception as e:
         logger.error(f"❌ Failed to generate tweet content: {e}")
