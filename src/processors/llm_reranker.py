@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 from dotenv import load_dotenv
 import re
 from utils.llm_client import get_llm_client, get_llm_model, get_llm_provider

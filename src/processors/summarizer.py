@@ -1,5 +1,4 @@
 import json
-import os
 
 from dotenv import load_dotenv
 from utils.llm_client import get_llm_client, get_llm_model
