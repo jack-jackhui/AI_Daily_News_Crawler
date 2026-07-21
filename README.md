@@ -33,7 +33,7 @@ This is an open-source application designed to crawl the latest AI(or any types 
 ### Prerequisites
 - Python 3.6 or higher must be installed on the system.
 - Required Python libraries such as BeautifulSoup, Requests, and Flask (for the messaging interface) need to be installed. These can be installed using `pip install -r requirements.txt`.
-- LLM API key. Azure OpenAI remains the default. Set `LLM_PROVIDER=openrouter` plus `OPENROUTER_BASE_URL`, `OPENROUTER_MODEL`, and either `OPENROUTER_API_KEY` or `OPENROUTER_API_KEY_FILE` to use OpenRouter.
+- LLM API key. Azure OpenAI remains the backwards-compatible default. Configure `LLM_PROVIDER` and optional comma-separated `LLM_FALLBACK_PROVIDERS` for an ordered chain. The production pattern is Gemini (`gemini-3.5-flash`) → OpenRouter Ultra → OpenRouter Super, using separate 0600 key files. Each tier is attempted once and fallback occurs only for network/timeouts or HTTP 408/409/429/5xx; authentication and other non-retryable 4xx errors fail immediately. See `.env.example`.
 ### Installation Steps
 1. Clone the repository from GitHub:
    ```
