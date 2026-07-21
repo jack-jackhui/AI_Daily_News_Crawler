@@ -17,7 +17,13 @@ from openai import APIConnectionError, APITimeoutError, AzureOpenAI, OpenAI
 logger = logging.getLogger(__name__)
 
 _RETRYABLE_STATUS_CODES = {408, 409, 429}
-_SUPPORTED_PROVIDERS = {"azure", "gemini", "openrouter", "openrouter_super"}
+_SUPPORTED_PROVIDERS = {
+    "azure",
+    "gemini",
+    "cloudflare",
+    "openrouter",
+    "openrouter_super",
+}
 
 
 @dataclass(frozen=True)
@@ -134,6 +140,28 @@ def _build_provider(name: str, bounded: bool) -> ProviderConfig:
             "GEMINI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai/"
         )
         model = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
+        return ProviderConfig(
+            name=name,
+            model=model,
+            client_factory=lambda: OpenAI(
+                api_key=key, base_url=base_url, max_retries=max_retries
+            ),
+        )
+
+    if name == "cloudflare":
+        key = _required_api_key(
+            "CLOUDFLARE_API_TOKEN", "CLOUDFLARE_API_TOKEN_FILE", name
+        )
+        account_id = os.getenv("CLOUDFLARE_ACCOUNT_ID", "").strip()
+        if not account_id:
+            raise RuntimeError("CLOUDFLARE_ACCOUNT_ID is required for cloudflare")
+        base_url = os.getenv("CLOUDFLARE_AI_BASE_URL", "").strip() or (
+            f"https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/v1"
+        )
+        model = os.getenv(
+            "CLOUDFLARE_AI_MODEL",
+            "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+        )
         return ProviderConfig(
             name=name,
             model=model,
