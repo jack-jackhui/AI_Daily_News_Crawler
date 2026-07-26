@@ -56,6 +56,12 @@ async def run_pipeline():
         re_ranked_and_summarized_articles = re_rank_and_summarize_with_llm(
             articles)
 
+        if not re_ranked_and_summarized_articles:
+            logger.error(
+                "❌ LLM produced no validated summaries. Aborting before any output is written or published."
+            )
+            return
+
         # 4. Formating output
         logger.info("🎉 Formatting the summarized articles for display...")
         formatted_summary = format_summary(re_ranked_and_summarized_articles)

@@ -2,7 +2,12 @@ import json
 import logging
 from dotenv import load_dotenv
 import re
-from utils.llm_client import get_llm_client, get_llm_model, get_llm_provider
+from utils.llm_client import (
+    LLMResponseValidationError,
+    get_llm_client,
+    get_llm_model,
+    get_llm_provider,
+)
 # Load environment variables
 load_dotenv()
 
@@ -47,6 +52,38 @@ def repair_json(response_text):
     response_text = re.sub(r",\s*]", "]", response_text)
 
     return response_text
+
+
+def _validate_summary_response(chat_completion) -> list[dict]:
+    """Parse and strictly validate an LLM summary response."""
+    try:
+        response_text = chat_completion.choices[0].message.content
+        if not isinstance(response_text, str) or not response_text.strip():
+            raise ValueError("response content is empty")
+        logger.info("Raw LLM response before parsing: %s", response_text)
+        parsed = json.loads(repair_json(response_text))
+    except (AttributeError, IndexError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        raise LLMResponseValidationError(f"Invalid summary JSON: {exc}") from exc
+
+    if not isinstance(parsed, list) or not parsed:
+        raise LLMResponseValidationError("Summary response must be a non-empty JSON array")
+
+    validated = []
+    for index, item in enumerate(parsed):
+        if not isinstance(item, dict):
+            raise LLMResponseValidationError(f"Summary item {index} is not an object")
+        normalized = {}
+        for field in ("title", "summary", "url"):
+            value = item.get(field)
+            if not isinstance(value, str) or not value.strip():
+                raise LLMResponseValidationError(
+                    f"Summary item {index} has invalid {field}"
+                )
+            normalized[field] = value.strip()
+        icon = item.get("icon")
+        normalized["icon"] = icon.strip() if isinstance(icon, str) and icon.strip() else "🤖"
+        validated.append(normalized)
+    return validated
 
 def re_rank_and_summarize_with_llm(articles: list[dict]) -> list[dict]:
     """
@@ -110,7 +147,8 @@ def re_rank_and_summarize_with_llm(articles: list[dict]) -> list[dict]:
     logger.info("Using %s model %s", get_llm_provider(), get_llm_model())
 
     try:
-        chat_completion = client.chat.completions.create(
+        return client.chat.completions.create_validated(
+            _validate_summary_response,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
@@ -119,22 +157,6 @@ def re_rank_and_summarize_with_llm(articles: list[dict]) -> list[dict]:
             temperature=1,
             max_completion_tokens=2000,
         )
-        response_text = chat_completion.choices[0].message.content.strip()
-        logger.info(f"Raw LLM response before parsing: {response_text}")
-
-        response_text = repair_json(response_text)
-
-        try:
-            re_ranked_and_summarized_articles = json.loads(response_text)
-            if isinstance(re_ranked_and_summarized_articles, list):
-                return re_ranked_and_summarized_articles
-            else:
-                logger.error("LLM returned a non-list JSON structure.")
-                return []
-        except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse JSON from LLM response. Error: {e}")
-            logger.debug(f"Repaired LLM response text: {response_text}")
-            return []
 
     except Exception as e:
         logger.error(f"Error while re-ranking and summarizing articles with LLM: {e}")

@@ -37,20 +37,33 @@ class LLMChainError(RuntimeError):
     """Raised after every configured provider fails with a retryable error."""
 
 
+class LLMResponseValidationError(ValueError):
+    """Raised when a provider returns unusable structured output."""
+
+
 class _FallbackCompletions:
     def __init__(self, providers: list[ProviderConfig]):
         self._providers = providers
 
     def create(self, **kwargs):
+        return self._create_with_provider_fallback(None, **kwargs)
+
+    def create_validated(self, validator: Callable[[Any], Any], **kwargs):
+        """Return validated content, falling back when a response is malformed."""
+        return self._create_with_provider_fallback(validator, **kwargs)
+
+    def _create_with_provider_fallback(self, validator, **kwargs):
         failures: list[str] = []
         for index, provider in enumerate(self._providers):
             request = dict(kwargs)
             request["model"] = provider.model
             try:
-                return provider.client_factory().chat.completions.create(**request)
+                response = provider.client_factory().chat.completions.create(**request)
+                return validator(response) if validator is not None else response
             except Exception as exc:
                 status = _status_code(exc)
-                retryable = _is_retryable(exc)
+                validation_failed = isinstance(exc, LLMResponseValidationError)
+                retryable = validation_failed or _is_retryable(exc)
                 failures.append(f"{provider.name}/{provider.model} ({status or type(exc).__name__})")
                 logger.warning(
                     "LLM request failed provider=%s model=%s status=%s retryable=%s",
