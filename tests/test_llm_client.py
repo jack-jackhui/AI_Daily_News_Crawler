@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 import tempfile
@@ -8,7 +9,12 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from utils.llm_client import LLMChainError, get_llm_client, get_llm_model  # noqa: E402
+from utils.llm_client import (  # noqa: E402
+    LLMChainError,
+    LLMResponseValidationError,
+    get_llm_client,
+    get_llm_model,
+)
 
 
 class ProviderFailure(Exception):
@@ -271,6 +277,96 @@ class LLMClientChainTests(unittest.TestCase):
         self.assertEqual(request["json"]["model"], "gpt-5.6-sol")
         self.assertEqual(request["json"]["max_output_tokens"], 123)
         self.assertNotIn("temperature", request["json"])
+
+    def _run_azure_fallback(self, azure_http_response):
+        env = {
+            "LLM_PROVIDER": "azure",
+            "LLM_FALLBACK_PROVIDERS": "gemini",
+            "AZURE_OPENAI_API_KEY": "azure-key",
+            "AZURE_OPENAI_BASE_URL": "https://example.openai.azure.com/openai/v1",
+            "AZURE_OPENAI_MODEL": "gpt-5.6-sol",
+            "GEMINI_API_KEY": "gemini-key",
+            "GEMINI_MODEL": "gemini-fallback",
+        }
+        fallback_response = SimpleNamespace(
+            choices=[
+                SimpleNamespace(message=SimpleNamespace(content='[{"ok": true}]'))
+            ]
+        )
+        fallback_calls = []
+
+        def validate(response):
+            try:
+                return json.loads(response.choices[0].message.content)
+            except (AttributeError, TypeError, json.JSONDecodeError) as exc:
+                raise LLMResponseValidationError("invalid JSON") from exc
+
+        with patch.dict(os.environ, env, clear=True), patch(
+            "utils.llm_client.requests.post", return_value=azure_http_response
+        ) as azure_post, patch(
+            "utils.llm_client.OpenAI",
+            return_value=FakeClient(fallback_response, fallback_calls, "gemini"),
+        ):
+            result = get_llm_client().chat.completions.create_validated(
+                validate,
+                model=get_llm_model(),
+                messages=[{"role": "user", "content": "return JSON"}],
+                max_completion_tokens=50,
+            )
+
+        return result, azure_post, fallback_calls
+
+    def test_azure_is_first_and_malformed_output_falls_back(self):
+        azure_response = SimpleNamespace(
+            raise_for_status=lambda: None,
+            json=lambda: {"output_text": "not valid JSON"},
+        )
+
+        result, azure_post, fallback_calls = self._run_azure_fallback(azure_response)
+
+        self.assertEqual(result, [{"ok": True}])
+        azure_post.assert_called_once()
+        self.assertEqual([name for name, _ in fallback_calls], ["gemini"])
+        self.assertEqual(fallback_calls[0][1]["model"], "gemini-fallback")
+
+    def test_retryable_azure_http_error_falls_back(self):
+        def raise_retryable():
+            raise ProviderFailure(503)
+
+        azure_response = SimpleNamespace(
+            raise_for_status=raise_retryable,
+            json=lambda: self.fail("JSON should not be parsed after an HTTP error"),
+        )
+
+        result, azure_post, fallback_calls = self._run_azure_fallback(azure_response)
+
+        self.assertEqual(result, [{"ok": True}])
+        azure_post.assert_called_once()
+        self.assertEqual([name for name, _ in fallback_calls], ["gemini"])
+
+    def test_azure_responses_supports_key_file_without_legacy_endpoint(self):
+        with tempfile.TemporaryDirectory() as directory:
+            key_file = Path(directory) / "azure.key"
+            key_file.write_text("azure-file-key\n", encoding="utf-8")
+            env = {
+                "LLM_PROVIDER": "azure",
+                "AZURE_OPENAI_API_KEY_FILE": str(key_file),
+                "AZURE_OPENAI_BASE_URL": "https://example.openai.azure.com/openai/v1",
+                "AZURE_OPENAI_MODEL": "gpt-5.6-sol",
+            }
+            http_response = SimpleNamespace(
+                raise_for_status=lambda: None,
+                json=lambda: {"output_text": "ok"},
+            )
+
+            with patch.dict(os.environ, env, clear=True), patch(
+                "utils.llm_client.requests.post", return_value=http_response
+            ) as post:
+                get_llm_client().chat.completions.create(
+                    model=get_llm_model(), messages=[]
+                )
+
+        self.assertEqual(post.call_args.kwargs["headers"]["api-key"], "azure-file-key")
 
 
 if __name__ == "__main__":

@@ -15,6 +15,8 @@ from typing import Any, Callable
 
 import requests
 from openai import APIConnectionError, APITimeoutError, AzureOpenAI, OpenAI
+from requests.exceptions import ConnectionError as RequestsConnectionError
+from requests.exceptions import Timeout as RequestsTimeout
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +51,9 @@ class _AzureResponsesCompletions:
     def __init__(self, base_url: str, api_key: str):
         self._url = f"{base_url.rstrip('/')}/responses"
         self._api_key = api_key
+        self._timeout = float(os.getenv("AZURE_OPENAI_TIMEOUT_SECONDS", "120"))
+        if self._timeout <= 0:
+            raise ValueError("AZURE_OPENAI_TIMEOUT_SECONDS must be greater than zero")
 
     def create(self, **kwargs):
         payload = {
@@ -62,10 +67,15 @@ class _AzureResponsesCompletions:
             self._url,
             headers={"api-key": self._api_key, "Content-Type": "application/json"},
             json=payload,
-            timeout=float(os.getenv("AZURE_OPENAI_TIMEOUT_SECONDS", "120")),
+            timeout=self._timeout,
         )
         response.raise_for_status()
-        data = response.json()
+        try:
+            data = response.json()
+        except ValueError as exc:
+            raise LLMResponseValidationError(
+                "Azure Responses API returned a non-JSON response"
+            ) from exc
         text = data.get("output_text")
         if not isinstance(text, str):
             text = "".join(
@@ -250,14 +260,14 @@ def _build_provider(name: str, bounded: bool) -> ProviderConfig:
         )
 
     api_key = _read_api_key("AZURE_OPENAI_API_KEY", "AZURE_OPENAI_API_KEY_FILE")
-    endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-    if not api_key or not endpoint:
+    endpoint = os.getenv("AZURE_OPENAI_ENDPOINT", "").strip()
+    responses_base_url = os.getenv("AZURE_OPENAI_BASE_URL", "").strip()
+    if not api_key or not (responses_base_url or endpoint):
         raise RuntimeError(
-            "AZURE_OPENAI_API_KEY or AZURE_OPENAI_API_KEY_FILE, and "
-            "AZURE_OPENAI_ENDPOINT are required for azure"
+            "AZURE_OPENAI_API_KEY or AZURE_OPENAI_API_KEY_FILE, and either "
+            "AZURE_OPENAI_BASE_URL or AZURE_OPENAI_ENDPOINT are required for azure"
         )
     model = os.getenv("AZURE_OPENAI_MODEL", "gpt-4o")
-    responses_base_url = os.getenv("AZURE_OPENAI_BASE_URL", "").strip()
     if responses_base_url:
         return ProviderConfig(
             name=name,
@@ -303,7 +313,17 @@ def _status_code(exc: Exception) -> int | None:
 
 
 def _is_retryable(exc: Exception) -> bool:
-    if isinstance(exc, (APIConnectionError, APITimeoutError, TimeoutError, ConnectionError)):
+    if isinstance(
+        exc,
+        (
+            APIConnectionError,
+            APITimeoutError,
+            RequestsConnectionError,
+            RequestsTimeout,
+            TimeoutError,
+            ConnectionError,
+        ),
+    ):
         return True
     status = _status_code(exc)
     return status in _RETRYABLE_STATUS_CODES or (status is not None and status >= 500)
