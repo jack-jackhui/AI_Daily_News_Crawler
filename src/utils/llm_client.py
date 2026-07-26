@@ -10,8 +10,10 @@ import logging
 import os
 from dataclasses import dataclass
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, Callable
 
+import requests
 from openai import APIConnectionError, APITimeoutError, AzureOpenAI, OpenAI
 
 logger = logging.getLogger(__name__)
@@ -39,6 +41,50 @@ class LLMChainError(RuntimeError):
 
 class LLMResponseValidationError(ValueError):
     """Raised when a provider returns unusable structured output."""
+
+
+class _AzureResponsesCompletions:
+    """Adapt Azure's Responses API to the chat-completions shape used here."""
+
+    def __init__(self, base_url: str, api_key: str):
+        self._url = f"{base_url.rstrip('/')}/responses"
+        self._api_key = api_key
+
+    def create(self, **kwargs):
+        payload = {
+            "model": kwargs["model"],
+            "input": kwargs.get("messages", []),
+        }
+        if kwargs.get("max_completion_tokens") is not None:
+            payload["max_output_tokens"] = kwargs["max_completion_tokens"]
+
+        response = requests.post(
+            self._url,
+            headers={"api-key": self._api_key, "Content-Type": "application/json"},
+            json=payload,
+            timeout=float(os.getenv("AZURE_OPENAI_TIMEOUT_SECONDS", "120")),
+        )
+        response.raise_for_status()
+        data = response.json()
+        text = data.get("output_text")
+        if not isinstance(text, str):
+            text = "".join(
+                content.get("text", "")
+                for output in data.get("output", [])
+                if isinstance(output, dict)
+                for content in output.get("content", [])
+                if isinstance(content, dict) and content.get("type") == "output_text"
+            )
+        return SimpleNamespace(
+            choices=[SimpleNamespace(message=SimpleNamespace(content=text))]
+        )
+
+
+class _AzureResponsesClient:
+    def __init__(self, base_url: str, api_key: str):
+        self.chat = SimpleNamespace(
+            completions=_AzureResponsesCompletions(base_url, api_key)
+        )
 
 
 class _FallbackCompletions:
@@ -203,11 +249,21 @@ def _build_provider(name: str, bounded: bool) -> ProviderConfig:
             ),
         )
 
-    api_key = os.getenv("AZURE_OPENAI_API_KEY")
+    api_key = _read_api_key("AZURE_OPENAI_API_KEY", "AZURE_OPENAI_API_KEY_FILE")
     endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
     if not api_key or not endpoint:
-        raise RuntimeError("AZURE_OPENAI_API_KEY and AZURE_OPENAI_ENDPOINT are required for azure")
+        raise RuntimeError(
+            "AZURE_OPENAI_API_KEY or AZURE_OPENAI_API_KEY_FILE, and "
+            "AZURE_OPENAI_ENDPOINT are required for azure"
+        )
     model = os.getenv("AZURE_OPENAI_MODEL", "gpt-4o")
+    responses_base_url = os.getenv("AZURE_OPENAI_BASE_URL", "").strip()
+    if responses_base_url:
+        return ProviderConfig(
+            name=name,
+            model=model,
+            client_factory=lambda: _AzureResponsesClient(responses_base_url, api_key),
+        )
     return ProviderConfig(
         name=name,
         model=model,

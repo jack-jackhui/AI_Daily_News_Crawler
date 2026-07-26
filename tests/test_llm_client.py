@@ -231,6 +231,47 @@ class LLMClientChainTests(unittest.TestCase):
 
         self.assertEqual(calls[0][1]["model"], "azure-deployment")
 
+    def test_azure_responses_api_adapter(self):
+        env = {
+            "LLM_PROVIDER": "azure",
+            "AZURE_OPENAI_API_KEY": "azure-key",
+            "AZURE_OPENAI_ENDPOINT": "https://example.openai.azure.com",
+            "AZURE_OPENAI_BASE_URL": "https://example.openai.azure.com/openai/v1",
+            "AZURE_OPENAI_MODEL": "gpt-5.6-sol",
+        }
+        http_response = SimpleNamespace(
+            raise_for_status=lambda: None,
+            json=lambda: {
+                "output": [
+                    {
+                        "type": "message",
+                        "content": [{"type": "output_text", "text": "valid output"}],
+                    }
+                ]
+            },
+        )
+
+        with patch.dict(os.environ, env, clear=True), patch(
+            "utils.llm_client.requests.post", return_value=http_response
+        ) as post:
+            client = get_llm_client()
+            result = client.chat.completions.create(
+                model=get_llm_model(),
+                messages=[{"role": "user", "content": "test"}],
+                max_completion_tokens=123,
+                temperature=1,
+            )
+
+        self.assertEqual(result.choices[0].message.content, "valid output")
+        request = post.call_args.kwargs
+        self.assertEqual(
+            post.call_args.args[0],
+            "https://example.openai.azure.com/openai/v1/responses",
+        )
+        self.assertEqual(request["json"]["model"], "gpt-5.6-sol")
+        self.assertEqual(request["json"]["max_output_tokens"], 123)
+        self.assertNotIn("temperature", request["json"])
+
 
 if __name__ == "__main__":
     unittest.main()
